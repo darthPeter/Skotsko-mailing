@@ -33,9 +33,9 @@ Moving away from Mailchimp (database too large/expensive) to a self-hosted email
 | 1 | **Verify SPF/DKIM/DMARC** for celtic.cz | Petr | DONE |
 | 2 | **Create ASM suppression group** — "Celtic.cz - Unsubscribed", group ID: **28696** | Petr | DONE |
 | 3 | **Wire ASM group ID into N8N workflow** | Claude | DONE |
-| 4 | **Upload existing unsubscribers** from Mailchimp to ASM group (currently 8) — Suppression Management → select group → Upload CSV | Petr | TODO |
-| 5 | **Enable open tracking** — SendGrid → Settings → Tracking → Open Tracking → ON | Petr | TODO |
-| 6 | **Enable click tracking** — SendGrid → Settings → Tracking → Click Tracking → ON (HTML only) | Petr | TODO |
+| 4 | **Upload existing unsubscribers** to ASM group | Petr | DONE |
+| 5 | **Enable open tracking** | Petr | DONE |
+| 6 | **Enable click tracking** | Petr | DONE |
 | | **--- Database ---** | | |
 | 6 | **Set up Supabase table** for contacts (columns: email, osloveni, subscribed, batch, sent) | Petr/Claude | TODO |
 | 7 | **Export contacts from Mailchimp** — Audience → All contacts → Export as CSV | Petr | TODO |
