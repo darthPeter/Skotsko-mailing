@@ -30,17 +30,20 @@ Moving away from Mailchimp (database too large/expensive) to a self-hosted email
 
 ### TODO
 
-| # | Task | Depends on | Priority |
-|---|------|-----------|----------|
-| 0 | **Create `Skotsko-mailing` GitHub repo** – host templates, images (GitHub Pages), project docs | — | HIGH |
-| 1 | **Upload banner image** to `Skotsko-mailing` repo + enable GitHub Pages for image hosting | #0 | HIGH |
-| 2 | **Update image URLs** in email template to point to `Skotsko-mailing` GitHub Pages (not production repo) | #0, #1 | HIGH |
-| 3 | **Set up Supabase table** for contacts | Supabase account | HIGH |
-| 4 | **Import contacts** from Mailchimp export → Supabase | #3 | HIGH |
-| 5 | **Set up SendGrid ASM** (suppression group) for unsubscribe handling | SendGrid account | HIGH |
-| 6 | **Build N8N workflow** for email sendout | #3, #4, #5 | HIGH |
-| 7 | **Test send** to a small batch | #1, #2, #6 | HIGH |
-| 8 | **Full sendout** to entire contact list | #7 | HIGH |
+| # | Task | Depends on | Status |
+|---|------|-----------|--------|
+| 0 | **Create `Skotsko-mailing` GitHub repo** + GitHub Pages | — | DONE |
+| 1 | **Upload banner image** + all assets to repo | #0 | DONE |
+| 2 | **Update image URLs** to GitHub Pages | #0, #1 | DONE |
+| 3 | **N8N workflow** for test send | — | DONE (id: `3ASCdHgg08fPP5rS`) |
+| 4 | **Test send** to chotebor.p@gmail.com | #1, #2, #3 | DONE (execution #8256) |
+| 5 | **Unsubscribe link** — implement working unsub (SendGrid ASM or custom via Supabase) | — | TODO |
+| 6 | **Analytics** — open/click tracking (SendGrid or custom) | — | TODO |
+| 7 | **Set up Supabase table** for contacts | Supabase account | TODO |
+| 8 | **Import contacts** from Mailchimp export → Supabase | #7 | TODO |
+| 9 | **N8N workflow** for bulk sendout (loop over Supabase contacts) | #5, #6, #7, #8 | TODO |
+| 10 | **Batch sending** — send in small batches (avoid SendGrid rate limits, monitor deliverability) | #9 | TODO |
+| 11 | **Full sendout** to entire contact list | #10 | TODO |
 
 ---
 
@@ -68,14 +71,18 @@ Moving away from Mailchimp (database too large/expensive) to a self-hosted email
 | `subscribed` | boolean | default true |
 | `created_at` | timestamptz | auto-generated |
 
-### N8N workflow (to be built)
+### N8N workflow
 
-Petr will provide his existing flow to adapt. Expected shape:
-- **Trigger:** manual or scheduled
-- **Read contacts** from Supabase (where `subscribed = true`)
-- **Loop/batch:** for each contact, send via SendGrid API
-- **Template:** inject `{{osloveni}}` into the HTML template
-- **SendGrid ASM** group ID for unsubscribe handling
+**Test flow** (id: `3ASCdHgg08fPP5rS`, name: "Skotsko e-mail (TEST)"):
+```
+Webhook → Fetch Template (HTTP GET GitHub Pages) → Inject Osloveni (Code) → Send via SendGrid
+```
+- **Fetch Template:** GETs `https://darthpeter.github.io/Skotsko-mailing/templates/email-2026-predprodej.html`
+- **Inject Osloveni:** replaces `{{osloveni}}` with recipient's greeting, sets recipient + subject
+- **Send via SendGrid:** from `petr@celtic.cz` as "Skotsko v Úněticích"
+- **Credentials:** SendGrid account `pSDSmCCOIPiKXOo2`
+
+**Production flow** (TODO): will add Supabase loop, unsub handling, analytics
 
 ### SendGrid setup needed
 
