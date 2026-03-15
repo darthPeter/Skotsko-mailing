@@ -7,7 +7,7 @@ Moving away from Mailchimp (database too large/expensive) to a self-hosted email
 ## CRITICAL RULES
 
 - **`skotskovuneticich-repo/`** = PRODUCTION website running on **Lovable**. **READ-ONLY. NEVER modify.**
-- **`Skotsko-mailing`** = NEW GitHub repo for all email/mailing work (templates, image hosting via GitHub Pages, project docs)
+- **`Skotsko-mailing`** = GitHub repo for all email/mailing work (templates, image hosting via GitHub Pages, project docs)
 
 ---
 
@@ -15,35 +15,27 @@ Moving away from Mailchimp (database too large/expensive) to a self-hosted email
 
 ### DONE
 
-| Component | Status | File/Location |
-|-----------|--------|---------------|
-| Festival website | Production-ready | `skotskovuneticich-repo/` (React/TS/Vite) |
-| Email HTML template | 95% ready | `email-2026-predprodej.html` (24KB) |
-| Template: SendGrid variables | Done | `{{osloveni}}`, `<%asm_group_unsubscribe_raw_url%>`, `<%asm_preferences_raw_url%>` |
-| Template: Responsive design | Done | Mobile breakpoint 600px, columns stack |
-| Template: Dark mode | Done | `prefers-color-scheme` media query |
-| Template: Outlook compat | Done | VML bulletproof button, ghost tables |
-| Template: Content sections | Done | Banner, body, pricing, CTA, merch (3 tees), partners (4), social, footer |
-| Template: CAN-SPAM footer | Done | Company address, unsubscribe links |
-| All image assets on GitHub | Done | `raw.githubusercontent.com/darthPeter/skotskovuneticich/main/src/assets/` |
-| Meta Pixel tracking (web) | Done | In website repo |
+| # | Task | Details |
+|---|------|---------|
+| 1 | **GitHub repo + Pages** | `github.com/darthPeter/Skotsko-mailing` — live at `darthpeter.github.io/Skotsko-mailing/` |
+| 2 | **Email template** | `templates/email-2026-predprodej.html` (~24KB, under Gmail 102KB limit) |
+| 3 | **All image assets** | Banner, merch (3), partners (4) — hosted on GitHub Pages |
+| 4 | **Image URLs updated** | All point to `darthpeter.github.io/Skotsko-mailing/assets/...` |
+| 5 | **N8N test workflow** | id: `3ASCdHgg08fPP5rS` — Webhook → Fetch Template → Inject Osloveni → SendGrid |
+| 6 | **Test sends** | Multiple successful sends to `chotebor.p@gmail.com`, template verified on mobile |
+| 7 | **Template reviewed** | Pricing box, merch names, copy, links — all iterated and approved |
 
-### TODO
+### TODO (Next Steps)
 
-| # | Task | Depends on | Status |
-|---|------|-----------|--------|
-| 0 | **Create `Skotsko-mailing` GitHub repo** + GitHub Pages | — | DONE |
-| 1 | **Upload banner image** + all assets to repo | #0 | DONE |
-| 2 | **Update image URLs** to GitHub Pages | #0, #1 | DONE |
-| 3 | **N8N workflow** for test send | — | DONE (id: `3ASCdHgg08fPP5rS`) |
-| 4 | **Test send** to chotebor.p@gmail.com | #1, #2, #3 | DONE (execution #8256) |
-| 5 | **Unsubscribe link** — implement working unsub (SendGrid ASM or custom via Supabase) | — | TODO |
-| 6 | **Analytics** — open/click tracking (SendGrid or custom) | — | TODO |
-| 7 | **Set up Supabase table** for contacts | Supabase account | TODO |
-| 8 | **Import contacts** from Mailchimp export → Supabase | #7 | TODO |
-| 9 | **N8N workflow** for bulk sendout (loop over Supabase contacts) | #5, #6, #7, #8 | TODO |
-| 10 | **Batch sending** — send in small batches (avoid SendGrid rate limits, monitor deliverability) | #9 | TODO |
-| 11 | **Full sendout** to entire contact list | #10 | TODO |
+| # | Task | Depends on | Priority |
+|---|------|-----------|----------|
+| 1 | **Unsubscribe link** — implement working unsub (SendGrid ASM or custom via Supabase) | — | HIGH |
+| 2 | **Analytics** — open/click tracking (SendGrid built-in or custom) | — | HIGH |
+| 3 | **Set up Supabase table** for contacts | Supabase account | HIGH |
+| 4 | **Import contacts** from Mailchimp export → Supabase | #3 | HIGH |
+| 5 | **N8N production workflow** — loop over Supabase contacts, inject per-recipient `osloveni` | #1, #2, #3, #4 | HIGH |
+| 6 | **Batch sending** — small batches to avoid SendGrid rate limits, monitor deliverability | #5 | HIGH |
+| 7 | **Full sendout** to entire contact list | #6 | HIGH |
 
 ---
 
@@ -55,10 +47,11 @@ Moving away from Mailchimp (database too large/expensive) to a self-hosted email
 │  (contacts) │     │  (flow) │     │  (SMTP)   │
 └─────────────┘     └─────────┘     └───────────┘
                          │
-                    ┌────┴────┐
-                    │ Template │
-                    │  (HTML)  │
-                    └─────────┘
+                  ┌──────┴──────┐
+                  │  Template   │
+                  │ (GitHub     │
+                  │  Pages)     │
+                  └─────────────┘
 ```
 
 ### Supabase table (proposed schema)
@@ -75,59 +68,63 @@ Moving away from Mailchimp (database too large/expensive) to a self-hosted email
 
 **Test flow** (id: `3ASCdHgg08fPP5rS`, name: "Skotsko e-mail (TEST)"):
 ```
-Webhook → Fetch Template (HTTP GET GitHub Pages) → Inject Osloveni (Code) → Send via SendGrid
+Webhook (POST, no auth) → Fetch Template → Inject Osloveni → Send via SendGrid
 ```
-- **Fetch Template:** GETs `https://darthpeter.github.io/Skotsko-mailing/templates/email-2026-predprodej.html`
-- **Inject Osloveni:** replaces `{{osloveni}}` with recipient's greeting, sets recipient + subject
+- **Fetch Template:** HTTP GET `https://darthpeter.github.io/Skotsko-mailing/templates/email-2026-predprodej.html`
+- **Inject Osloveni:** Code node — replaces `{{osloveni}}` with recipient greeting, sets recipient + subject
 - **Send via SendGrid:** from `petr@celtic.cz` as "Skotsko v Úněticích"
 - **Credentials:** SendGrid account `pSDSmCCOIPiKXOo2`
 
-**Production flow** (TODO): will add Supabase loop, unsub handling, analytics
+**Production flow** (TODO #5): Supabase read → loop contacts → inject osloveni per recipient → SendGrid batch send
 
 ### SendGrid setup needed
 
-- Verified sender domain (`celtic.cz` or `celtic.monster`)
-- ASM suppression group (e.g. "Festival Newsletter")
-- Dynamic template or inline HTML via API
+- Verified sender domain (`celtic.cz`)
+- ASM suppression group (e.g. "Festival Newsletter") for unsubscribe handling
+- Enable open/click tracking in SendGrid settings
 
 ---
 
 ## Email Template Details
 
-**File:** `email-2026-predprodej.html` (24KB – well under Gmail's 102KB clipping limit)
+**File:** `templates/email-2026-predprodej.html`
+**Preview:** `https://darthpeter.github.io/Skotsko-mailing/templates/email-2026-predprodej.html`
 
 **Sections:**
-1. Full-width header banner (new FB cover image with lineup)
+1. Full-width header banner (FB cover image with lineup)
 2. Personalized greeting (`{{osloveni}}`)
-3. Festival announcement + headliner highlight (Mr. Irish Bastard)
-4. Pricing callout box (300 Kč presale / 400 Kč at door)
-5. CTA button → `kape.ly/skotsko-v-uneticich`
-6. Info links (celtic.cz, Facebook, FB event)
+3. Festival announcement with Mr. Irish Bastard YT link
+4. Pricing callout box (Předprodej 300 Kč / Na místě 400 Kč / ends 17.4.)
+5. CTA button "Chci lístek!" → `celtic.cz/`
+6. Info links (celtic.cz, Facebook, FB události)
 7. Signature (Petr, organizátor)
-8. Merch grid (3 t-shirts × 499 Kč)
+8. Merch grid: Únětický Trooper 2026 | The Beer for All | Festivalové OG (all 499 Kč, link → `kape.ly/skotsko-v-uneticich#merch`)
 9. Partner logos (Hankey Bannister, Bláha, Únětický pivovar, Alkohol.cz)
 10. Social icons (FB, IG, email)
-11. Footer (copyright, address, unsubscribe)
+11. Footer (copyright, Bannockburn Entertainments s.r.o., address, SendGrid unsub tags)
 
 **Design system:**
 - Dark green `#122b1a` (hero, footer)
-- Burnt orange `#C45C26` (CTA, accents)
-- Gold `#D4A84B` (dividers, badges)
+- Burnt orange `#C45C26` (CTA, accents, MIB link)
+- Gold `#D4A84B` (dividers, pricing badge border)
 - Parchment `#f2f0eb` (outer background)
 - White `#ffffff` (content area)
-- Font: Oswald (headings, progressive enhancement) → Helvetica Neue/Arial fallback
+- Font: Oswald 700 (headings) → Helvetica Neue/Arial fallback
 
 **Compatibility:**
 - Gmail, Outlook (desktop + new), Apple Mail, iOS Mail, Android
-- Responsive: stacks to single column at 600px
-- Dark mode: automatic color adaptation
-- Outlook: VML bulletproof button + ghost tables
+- Responsive: stacks to single column at 600px, merch images full-width on mobile
+- Dark mode: `prefers-color-scheme` media query with adapted colors
+- Outlook: VML bulletproof CTA button + ghost tables for columns
 
----
-
-## Next Step
-
-Waiting for Petr's **N8N flow** – then adapt the template and workflow together. Tasks #1–4 can be done in parallel.
+**Links in template:**
+- Banner → `celtic.cz/skotsko-v-uneticich/`
+- CTA "Chci lístek!" → `celtic.cz/`
+- Mr. Irish Bastard → `youtube.com/@MrIrishBastardOfficial`
+- Merch (images + Koupit buttons) → `kape.ly/skotsko-v-uneticich#merch`
+- Info links → `celtic.cz/skotsko-v-uneticich/`, `facebook.com/skotskovuneticich`
+- Social → FB, IG, email (petr@chotebor.org)
+- Footer unsub → `<%asm_group_unsubscribe_raw_url%>`, `<%asm_preferences_raw_url%>`
 
 ---
 
@@ -139,11 +136,12 @@ Waiting for Petr's **N8N flow** – then adapt the template and workflow togethe
 | **Location** | Únětický pivovar, Rýznerova 18, Únětice |
 | **Lineup** | Mr. Irish Bastard (DE), Vintage Wine, Foggy Dude, Five Leaf Clover |
 | **Tickets** | 300 Kč presale (until 17.4.), 400 Kč at door |
-| **Free entry** | Děti do 12 let, ZTP, Úněťáci na občanku |
+| **Free entry** | Děti do 12 let, ZTP, Únětičtí na občanku |
 | **Ticket link** | https://kape.ly/skotsko-v-uneticich |
-| **Website** | https://celtic.cz/skotsko-v-uneticich/ |
-| **Company** | Bannockburn Entertainments s.r.o. |
-| **GitHub repo** | github.com/darthPeter/skotskovuneticich |
+| **Website** | https://celtic.cz/ |
+| **Company** | Bannockburn Entertainments s.r.o., Rýzmberská 539, 252 62 Horoměřice |
+| **Mailing repo** | github.com/darthPeter/Skotsko-mailing |
+| **Production repo** | github.com/darthPeter/skotskovuneticich (READ-ONLY) |
 | **FB** | facebook.com/skotskovuneticich |
 | **IG** | instagram.com/skotsko_unetice/ |
 | **Contact** | petr@chotebor.org |
