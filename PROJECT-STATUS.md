@@ -29,8 +29,10 @@ Moving away from Mailchimp (database too large/expensive) to a self-hosted email
 
 | # | Task | Depends on | Priority |
 |---|------|-----------|----------|
-| 1 | **Unsubscribe link** — implement working unsub (SendGrid ASM or custom via Supabase) | — | HIGH |
-| 2 | **Analytics** — open/click tracking (SendGrid built-in or custom) | — | HIGH |
+| 1a | **Petr: Create SendGrid ASM group** (e.g. "Festival Newsletter") in SendGrid dashboard → Settings → Suppression Management | — | HIGH |
+| 1b | **Petr: Upload existing unsubscribers** to the ASM group | #1a | HIGH |
+| 1c | **Claude: Add ASM group ID to N8N workflow** (SendGrid node `additionalFields.asm`) | #1a | HIGH |
+| 2 | **Analytics** — enable open/click tracking in SendGrid (Settings → Tracking) | — | HIGH |
 | 3 | **Set up Supabase table** for contacts | Supabase account | HIGH |
 | 4 | **Import contacts** from Mailchimp export → Supabase | #3 | HIGH |
 | 5 | **N8N production workflow** — loop over Supabase contacts, inject per-recipient `osloveni` | #1, #2, #3, #4 | HIGH |
@@ -79,9 +81,10 @@ Webhook (POST, no auth) → Fetch Template → Inject Osloveni → Send via Send
 
 ### SendGrid setup needed
 
-- Verified sender domain (`celtic.cz`)
-- ASM suppression group (e.g. "Festival Newsletter") for unsubscribe handling
-- Enable open/click tracking in SendGrid settings
+- Verified sender domain (`celtic.cz`) — check if already done
+- **ASM suppression group** — Petr creates in SendGrid: Settings → Suppression Management → Add Group. Name: "Festival Newsletter". Then upload existing Mailchimp unsubscribers to this group. Give Claude the **group ID** (number) to wire into N8N.
+- **Tracking** — enable open tracking + click tracking: Settings → Tracking
+- Template ASM tags already in place: `<%asm_group_unsubscribe_raw_url%>`, `<%asm_preferences_raw_url%>`
 
 ---
 
