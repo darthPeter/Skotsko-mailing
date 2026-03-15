@@ -29,15 +29,23 @@ Moving away from Mailchimp (database too large/expensive) to a self-hosted email
 
 | # | Task | Who | Status |
 |---|------|-----|--------|
-| 1a | **Create SendGrid ASM group** (Settings → Suppression Management → Add Group) | Petr | TODO |
-| 1b | **Upload existing unsubscribers** from Mailchimp to the ASM group | Petr | TODO |
-| 1c | **Add ASM group ID to N8N workflow** | Claude | TODO (waiting for group ID) |
-| 2 | **Enable open/click tracking** in SendGrid (Settings → Tracking) | Petr | TODO |
-| 3 | **Verify SPF/DKIM/DMARC** for celtic.cz in SendGrid (Settings → Sender Authentication) — add DNS records | Petr | TODO |
-| 4 | **Set up Supabase table** for contacts (columns: email, osloveni, subscribed, batch, sent) | Petr/Claude | TODO |
-| 5 | **Import contacts** from Mailchimp export → Supabase | Petr/Claude | TODO |
-| 6 | **N8N production workflow** — read Supabase contacts (where sent=false, batch=N), send, mark sent=true | Claude | TODO |
-| 7 | **Batch sendout** — Day 1: batch 1 (100) + batch 2 (200), Day 2: batch 3 (200) | Petr triggers | TODO |
+| | **--- SendGrid setup ---** | | |
+| 1 | **Verify SPF/DKIM/DMARC** for celtic.cz — SendGrid → Settings → Sender Authentication → Authenticate Your Domain → add DNS records where celtic.cz is hosted | Petr | TODO |
+| 2 | **Create ASM suppression group** — SendGrid → Settings → Suppression Management → Create New Group (name: "Festival Newsletter") | Petr | TODO |
+| 3 | **Upload existing unsubscribers** from Mailchimp export to the ASM group — Suppression Management → select group → Upload CSV | Petr | TODO |
+| 4 | **Enable open tracking** — SendGrid → Settings → Tracking → Open Tracking → ON | Petr | TODO |
+| 5 | **Enable click tracking** — SendGrid → Settings → Tracking → Click Tracking → ON (HTML only) | Petr | TODO |
+| | **--- Database ---** | | |
+| 6 | **Set up Supabase table** for contacts (columns: email, osloveni, subscribed, batch, sent) | Petr/Claude | TODO |
+| 7 | **Export contacts from Mailchimp** — Audience → All contacts → Export as CSV | Petr | TODO |
+| 8 | **Import contacts** CSV → Supabase, assign batch numbers (1=first 100, 2=next 200, 3=remaining 200) | Petr/Claude | TODO |
+| | **--- N8N workflow ---** | | |
+| 9 | **Add ASM group ID to N8N workflow** (from step 2) | Claude | TODO |
+| 10 | **Build production workflow** — read Supabase (where sent=false AND batch=N), loop, send, mark sent=true | Claude | TODO |
+| | **--- Sendout ---** | | |
+| 11 | **Batch 1** (100 contacts) — send, wait 2-3h, check stats | Petr triggers | TODO |
+| 12 | **Batch 2** (200 contacts) — if #11 clean (bounces <2%, no spam) | Petr triggers | TODO |
+| 13 | **Batch 3** (200 contacts) — next day | Petr triggers | TODO |
 
 ### Batching strategy (500 contacts, existing domain reputation)
 
