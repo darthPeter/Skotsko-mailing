@@ -30,11 +30,12 @@ Moving away from Mailchimp (database too large/expensive) to a self-hosted email
 | # | Task | Who | Status |
 |---|------|-----|--------|
 | | **--- SendGrid setup ---** | | |
-| 1 | **Verify SPF/DKIM/DMARC** for celtic.cz — SendGrid → Settings → Sender Authentication → Authenticate Your Domain → add DNS records where celtic.cz is hosted | Petr | TODO |
-| 2 | **Create ASM suppression group** — SendGrid → Settings → Suppression Management → Create New Group (name: "Festival Newsletter") | Petr | TODO |
-| 3 | **Upload existing unsubscribers** from Mailchimp export to the ASM group — Suppression Management → select group → Upload CSV | Petr | TODO |
-| 4 | **Enable open tracking** — SendGrid → Settings → Tracking → Open Tracking → ON | Petr | TODO |
-| 5 | **Enable click tracking** — SendGrid → Settings → Tracking → Click Tracking → ON (HTML only) | Petr | TODO |
+| 1 | **Verify SPF/DKIM/DMARC** for celtic.cz | Petr | DONE |
+| 2 | **Create ASM suppression group** — "Celtic.cz - Unsubscribed", group ID: **28696** | Petr | DONE |
+| 3 | **Wire ASM group ID into N8N workflow** | Claude | DONE |
+| 4 | **Upload existing unsubscribers** from Mailchimp to ASM group (currently 8) — Suppression Management → select group → Upload CSV | Petr | TODO |
+| 5 | **Enable open tracking** — SendGrid → Settings → Tracking → Open Tracking → ON | Petr | TODO |
+| 6 | **Enable click tracking** — SendGrid → Settings → Tracking → Click Tracking → ON (HTML only) | Petr | TODO |
 | | **--- Database ---** | | |
 | 6 | **Set up Supabase table** for contacts (columns: email, osloveni, subscribed, batch, sent) | Petr/Claude | TODO |
 | 7 | **Export contacts from Mailchimp** — Audience → All contacts → Export as CSV | Petr | TODO |
