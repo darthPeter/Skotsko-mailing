@@ -37,7 +37,7 @@ Moving away from Mailchimp (database too large/expensive) to a self-hosted email
 | 5 | **Enable open tracking** | Petr | DONE |
 | 6 | **Enable click tracking** | Petr | DONE |
 | | **--- Database ---** | | |
-| 6 | **Set up Supabase table** for contacts (columns: email, osloveni, subscribed, batch, sent) | Petr/Claude | TODO |
+| 6 | **Set up Supabase table** `contacts` (email, osloveni, subscribed, batch, sent) | Petr/Claude | DONE |
 | 7 | **Export contacts from Mailchimp** — Audience → All contacts → Export as CSV | Petr | TODO |
 | 8 | **Import contacts** CSV → Supabase, assign batch numbers (1=first 100, 2=next 200, 3=remaining 200) | Petr/Claude | TODO |
 | | **--- N8N workflow ---** | | |
