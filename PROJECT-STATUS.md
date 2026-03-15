@@ -27,17 +27,33 @@ Moving away from Mailchimp (database too large/expensive) to a self-hosted email
 
 ### TODO (Next Steps)
 
-| # | Task | Depends on | Priority |
-|---|------|-----------|----------|
-| 1a | **Petr: Create SendGrid ASM group** (e.g. "Festival Newsletter") in SendGrid dashboard → Settings → Suppression Management | — | HIGH |
-| 1b | **Petr: Upload existing unsubscribers** to the ASM group | #1a | HIGH |
-| 1c | **Claude: Add ASM group ID to N8N workflow** (SendGrid node `additionalFields.asm`) | #1a | HIGH |
-| 2 | **Analytics** — enable open/click tracking in SendGrid (Settings → Tracking) | — | HIGH |
-| 3 | **Set up Supabase table** for contacts | Supabase account | HIGH |
-| 4 | **Import contacts** from Mailchimp export → Supabase | #3 | HIGH |
-| 5 | **N8N production workflow** — loop over Supabase contacts, inject per-recipient `osloveni` | #1, #2, #3, #4 | HIGH |
-| 6 | **Batch sending** — small batches to avoid SendGrid rate limits, monitor deliverability | #5 | HIGH |
-| 7 | **Full sendout** to entire contact list | #6 | HIGH |
+| # | Task | Who | Status |
+|---|------|-----|--------|
+| 1a | **Create SendGrid ASM group** (Settings → Suppression Management → Add Group) | Petr | TODO |
+| 1b | **Upload existing unsubscribers** from Mailchimp to the ASM group | Petr | TODO |
+| 1c | **Add ASM group ID to N8N workflow** | Claude | TODO (waiting for group ID) |
+| 2 | **Enable open/click tracking** in SendGrid (Settings → Tracking) | Petr | TODO |
+| 3 | **Verify SPF/DKIM/DMARC** for celtic.cz in SendGrid (Settings → Sender Authentication) — add DNS records | Petr | TODO |
+| 4 | **Set up Supabase table** for contacts (columns: email, osloveni, subscribed, batch, sent) | Petr/Claude | TODO |
+| 5 | **Import contacts** from Mailchimp export → Supabase | Petr/Claude | TODO |
+| 6 | **N8N production workflow** — read Supabase contacts (where sent=false, batch=N), send, mark sent=true | Claude | TODO |
+| 7 | **Batch sendout** — Day 1: batch 1 (100) + batch 2 (200), Day 2: batch 3 (200) | Petr triggers | TODO |
+
+### Batching strategy (500 contacts, existing domain reputation)
+
+Domain celtic.cz was used with Mailchimp last year (50% open rate). Audience = ticket buyers. Moving to SendGrid = new sending infrastructure, so mild warmup needed.
+
+| Day | Batch | Size | Action |
+|-----|-------|------|--------|
+| Day 1 | #1 | 100 | Send, wait 2-3 hours, check stats |
+| Day 1 | #2 | 200 | If #1 clean (bounces <2%, no spam reports) |
+| Day 2 | #3 | 200 | Remaining |
+
+**Kill switch:** If batch #1 has >5% bounces or any spam reports → stop, investigate.
+
+**Supabase columns for batching:**
+- `batch` (integer 1-3) — assigned during import
+- `sent` (boolean, default false) — flipped to true after successful send, prevents double-sending
 
 ---
 
@@ -64,6 +80,8 @@ Moving away from Mailchimp (database too large/expensive) to a self-hosted email
 | `email` | text, unique | contact email |
 | `osloveni` | text | personalized greeting ("Petře", "Honzo", etc.) |
 | `subscribed` | boolean | default true |
+| `batch` | integer | 1-3, assigned during import |
+| `sent` | boolean | default false, flipped to true after send (prevents double-sending) |
 | `created_at` | timestamptz | auto-generated |
 
 ### N8N workflow
