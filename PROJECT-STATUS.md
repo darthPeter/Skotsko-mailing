@@ -6,6 +6,7 @@ Moving away from Mailchimp (database too large/expensive) to a self-hosted email
 
 ## CRITICAL RULES
 
+- **NEVER send any email to real clients without explicit confirmation from Petr.** Test only with `chotebor.p@gmail.com`. Be extremely careful not to trigger bulk sends by mistake.
 - **`skotskovuneticich-repo/`** = PRODUCTION website running on **Lovable**. **READ-ONLY. NEVER modify.**
 - **`Skotsko-mailing`** = GitHub repo for all email/mailing work (templates, image hosting via GitHub Pages, project docs)
 
