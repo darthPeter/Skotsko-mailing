@@ -7,6 +7,7 @@ Moving away from Mailchimp (database too large/expensive) to a self-hosted email
 ## CRITICAL RULES
 
 - **NEVER send any email to real clients without explicit confirmation from Petr.** Test only with `chotebor.p@gmail.com`. Be extremely careful not to trigger bulk sends by mistake.
+- **Production workflow uses MANUAL TRIGGER only.** Petr manually enters batch number and clicks Execute. No webhooks, no automation. This is the safeguard.
 - **`skotskovuneticich-repo/`** = PRODUCTION website running on **Lovable**. **READ-ONLY. NEVER modify.**
 - **`Skotsko-mailing`** = GitHub repo for all email/mailing work (templates, image hosting via GitHub Pages, project docs)
 
@@ -53,11 +54,13 @@ Moving away from Mailchimp (database too large/expensive) to a self-hosted email
 
 Domain celtic.cz was used with Mailchimp last year (50% open rate). Audience = ticket buyers. Moving to SendGrid = new sending infrastructure, so mild warmup needed.
 
-| Day | Batch | Size | Action |
-|-----|-------|------|--------|
-| Day 1 | #1 | 100 | Send, wait 2-3 hours, check stats |
-| Day 1 | #2 | 200 | If #1 clean (bounces <2%, no spam reports) |
-| Day 2 | #3 | 200 | Remaining |
+| Day | Batch | Size | Contents |
+|-----|-------|------|----------|
+| Test | #1 | 1 | Just `chotebor.p@gmail.com` — verify full flow works |
+| Day 1 | #2 | 50 | First real batch, monitor 2-3 hours |
+| Day 1 | #3 | 100 | If #2 clean (bounces <2%, no spam reports) |
+| Day 2 | #4 | 150 | Next batch |
+| Day 2 | #5 | ~200 | Remaining |
 
 **Kill switch:** If batch #1 has >5% bounces or any spam reports → stop, investigate.
 
@@ -105,7 +108,18 @@ Webhook (POST, no auth) → Fetch Template → Inject Osloveni → Send via Send
 - **Send via SendGrid:** from `petr@celtic.cz` as "Skotsko v Úněticích"
 - **Credentials:** SendGrid account `pSDSmCCOIPiKXOo2`
 
-**Production flow** (TODO #5): Supabase read → loop contacts → inject osloveni per recipient → SendGrid batch send
+**Production flow** (TODO):
+```
+Manual Trigger (Petr clicks Execute)
+  → Set Batch Number (Petr enters manually)
+    → Supabase: SELECT * FROM contacts WHERE batch=N AND sent=false AND subscribed=true
+      → Loop each contact
+        → Fetch Template (GitHub Pages)
+          → Inject osloveni per recipient
+            → Send via SendGrid (ASM group 28696)
+              → Supabase: UPDATE contacts SET sent=true WHERE id=contact.id
+```
+**Safeguard:** No webhook trigger. Petr must manually enter batch number and click Execute. chotebor.p@gmail.com is in batch 1 for test runs.
 
 ### SendGrid setup needed
 
