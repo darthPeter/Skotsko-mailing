@@ -40,8 +40,8 @@ Moving away from Mailchimp (database too large/expensive) to a self-hosted email
 | 6 | **Enable click tracking** | Petr | DONE |
 | | **--- Database ---** | | |
 | 6 | **Set up Supabase table** `contacts` (email, osloveni, subscribed, batch, sent) | Petr/Claude | DONE |
-| 7 | **Export contacts from Mailchimp** — Audience → All contacts → Export as CSV | Petr | TODO |
-| 8 | **Import contacts** CSV → Supabase, assign batch numbers (1=first 100, 2=next 200, 3=remaining 200) | Petr/Claude | TODO |
+| 7 | **Export + import contacts** to Supabase (434 contacts) | Petr | DONE |
+| 8 | **Assign batch numbers** (1=test, 2=50, 3=100, 4=150, 5=133) | Petr/Claude | DONE |
 | | **--- N8N workflow ---** | | |
 | 9 | **Add ASM group ID to N8N workflow** (from step 2) | Claude | TODO |
 | 10 | **Build production workflow** — read Supabase (where sent=false AND batch=N), loop, send, mark sent=true | Claude | TODO |
@@ -60,7 +60,8 @@ Domain celtic.cz was used with Mailchimp last year (50% open rate). Audience = t
 | Day 1 | #2 | 50 | First real batch, monitor 2-3 hours |
 | Day 1 | #3 | 100 | If #2 clean (bounces <2%, no spam reports) |
 | Day 2 | #4 | 150 | Next batch |
-| Day 2 | #5 | ~200 | Remaining |
+| Day 2 | #5 | 133 | Remaining |
+| | **Total** | **434** | |
 
 **Kill switch:** If batch #1 has >5% bounces or any spam reports → stop, investigate.
 
