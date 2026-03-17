@@ -113,37 +113,37 @@ Webhook (POST, no auth) → Fetch Template → Inject Osloveni → Send via Send
 
 **Production flow** (id: `lcE8F0gUUyuLodGZ`, name: "Skotsko e-mail (PRODUCTION)"):
 ```
-Form Trigger (Enter Batch Number)
-  → Fetch Template (GitHub Pages)
-    → Read Contacts (Supabase: batch=N, sent=false, subscribed=true)
-      → Build Emails (Code: inject osloveni per contact, handle empty)
-        → Send via SendGrid (ASM group 28696)
-          → Prepare Update (Code: get contactId)
-            → Mark Sent (Supabase: set sent=true)
+Run (Manual Trigger)
+  → Set Batch Number (Petr changes value before each run)
+    → Fetch Template (GitHub Pages)
+      → Read Contacts (Supabase: batch=N, sent=false, subscribed=true)
+        → Build Emails (Code: inject osloveni, filter sent, handle empty)
+          → Send via SendGrid (ASM group 28696)
+            → Prepare Update (Code: get contactId)
+              → Mark Sent (Supabase: set sent=true)
 ```
 
 **Nodes detail:**
 | Node | Type | Purpose |
 |------|------|---------|
-| Enter Batch Number | Form Trigger | Web form with one field — Petr types batch number and submits |
-| Fetch Template | HTTP Request | GETs template from GitHub Pages |
+| Run | Manual Trigger | Petr clicks "Execute Workflow" in n8n editor |
+| Set Batch Number | Set | Single field `batch` — Petr changes this value (1-5) before each run |
+| Fetch Template | HTTP Request | GETs template from GitHub Pages (latest version every time) |
 | Read Contacts | Supabase | Gets contacts WHERE batch=N AND sent=false AND subscribed=true |
-| Build Emails | Code | Replaces `{{osloveni}}` (handles empty), sets recipient/subject/html per contact |
+| Build Emails | Code | Replaces `{{osloveni}}` (empty = ok, stays blank), extra filter: skips sent=true |
 | Send via SendGrid | SendGrid | Sends from `petr@celtic.cz` as "Skotsko v Úněticích", ASM group 28696 |
 | Prepare Update | Code | Maps contactId for database update |
 | Mark Sent | Supabase | Updates `sent=true` for each successfully sent contact |
 
-**Safeguards:**
-- Form Trigger = manual only, no automation, no webhook
-- Petr must type batch number and click Submit
-- `sent=true` after each send prevents double-sending
-- `subscribed=true` filter respects unsubscribes
-- ASM group 28696 = SendGrid also blocks server-side
-- Batch 1 = only `chotebor.p@gmail.com` for testing
+**Safeguards (3 layers):**
+1. **Manual Trigger** — nothing fires without Petr opening n8n and clicking Execute
+2. **Supabase query** filters `sent=false` — already-sent contacts never returned
+3. **Code node** double-checks `sent !== true` — extra safety in Build Emails
+4. **ASM group 28696** — SendGrid blocks unsubscribed recipients server-side
 
 **Credentials needed:**
 - SendGrid: `pSDSmCCOIPiKXOo2` (already connected)
-- Supabase: must be connected manually in "Read Contacts" and "Mark Sent" nodes
+- Supabase: **must be connected manually** in "Read Contacts" and "Mark Sent" nodes
 
 ### SendGrid setup needed
 
@@ -224,15 +224,14 @@ Form Trigger (Enter Batch Number)
 1. Open n8n → workflow **"Skotsko e-mail (PRODUCTION)"** (`lcE8F0gUUyuLodGZ`)
 2. Click **"Read Contacts"** node → connect your Supabase credentials
 3. Click **"Mark Sent"** node → connect your Supabase credentials (same ones)
-4. **Activate** the workflow (toggle top-right)
-5. The form trigger URL will appear — bookmark it
+4. Done. Do NOT activate — you run it manually each time.
 
 ### Sending a batch
 
-1. Open the form trigger URL in your browser
-2. Enter the **batch number** (1-5)
-3. Click **Submit**
-4. Wait for the workflow to finish — the form will show a completion message
+1. Open the workflow in n8n editor
+2. Click **"Set Batch Number"** node → change the `batch` value to the batch you want to send (1-5)
+3. Click **"Execute Workflow"** (play button)
+4. Watch the nodes light up green as they process
 5. Check your SendGrid Activity Feed for delivery stats
 
 ### Batch schedule
