@@ -103,7 +103,7 @@ Run (Manual Trigger)
 | Run | Manual Trigger | Petr clicks Execute Workflow in n8n editor |
 | Set Batch Number | Set | `batch` = 1 (default). Change to 2-5 for real batches |
 | Fetch Template | HTTP Request | GET `darthpeter.github.io/Skotsko-mailing/templates/email-2026-predprodej.html` |
-| Read Contacts | Supabase (getAll) | Filter: `batch=eq.{N}&sent=eq.false&subscribed=eq.true`. Credential: `KmCWPRRYPk1x2Rxd` |
+| Read Contacts | Supabase (getAll) | Filter: `batch=eq.{N}&sent=is.false&subscribed=is.true`. Credential: `KmCWPRRYPk1x2Rxd` |
 | Loop Over Contacts | Split In Batches v3 | batchSize=1. Output 0=done, Output 1=loop items |
 | Build Email | Code | Replaces `{{osloveni}}` (empty→blank). Skips if sent=true. Builds full SendGrid API body with ASM group 28696 |
 | Send via SendGrid | HTTP Request | POST `api.sendgrid.com/v3/mail/send`. Uses predefined SendGrid credential `pSDSmCCOIPiKXOo2`. Body = `JSON.stringify($json.sendgridBody)` |
@@ -253,7 +253,7 @@ If bounce rate >5% or any spam reports → **STOP** and investigate before next 
 - **Need to resend to someone?** In Supabase: `UPDATE contacts SET sent = false WHERE email = 'their@email.com'`
 - **Want to skip someone?** In Supabase: `UPDATE contacts SET subscribed = false WHERE email = 'their@email.com'`
 - **Template change needed?** Edit in GitHub repo (`templates/`), push, wait ~1 min for Pages deploy. Workflow fetches latest template every run.
-- **Supabase filter issue?** If batch returns 0 results unexpectedly, try changing filter from `sent=eq.false` to `sent=is.false` in the Read Contacts node.
+- **Supabase filter issue?** If batch returns 0 results unexpectedly, try changing filter from `sent=is.false` to `sent=is.false` in the Read Contacts node.
 
 ### Quick test (without production workflow)
 
