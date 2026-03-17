@@ -43,12 +43,16 @@ Moving away from Mailchimp (database too large/expensive) to a self-hosted email
 | 7 | **Export + import contacts** to Supabase (434 contacts) | Petr | DONE |
 | 8 | **Assign batch numbers** (1=test, 2=50, 3=100, 4=150, 5=133) | Petr/Claude | DONE |
 | | **--- N8N workflow ---** | | |
-| 9 | **Add ASM group ID to N8N workflow** (from step 2) | Claude | TODO |
-| 10 | **Build production workflow** — read Supabase (where sent=false AND batch=N), loop, send, mark sent=true | Claude | TODO |
+| 9 | **Add ASM group ID to N8N workflow** (28696) | Claude | DONE |
+| 10 | **Build production workflow** `lcE8F0gUUyuLodGZ` | Claude | DONE |
+| 11 | **Connect Supabase credentials** in "Read Contacts" + "Mark Sent" nodes | Petr | TODO |
+| 12 | **Activate production workflow** (toggle on in n8n) | Petr | TODO |
 | | **--- Sendout ---** | | |
-| 11 | **Batch 1** (100 contacts) — send, wait 2-3h, check stats | Petr triggers | TODO |
-| 12 | **Batch 2** (200 contacts) — if #11 clean (bounces <2%, no spam) | Petr triggers | TODO |
-| 13 | **Batch 3** (200 contacts) — next day | Petr triggers | TODO |
+| 13 | **Test: Batch 1** (1 contact = chotebor.p@gmail.com) — verify full flow | Petr | TODO |
+| 14 | **Batch 2** (50 contacts) — send, wait 2-3h, check stats | Petr | TODO |
+| 15 | **Batch 3** (100 contacts) — if #14 clean (bounces <2%, no spam) | Petr | TODO |
+| 16 | **Batch 4** (150 contacts) — next day | Petr | TODO |
+| 17 | **Batch 5** (133 contacts) — remaining | Petr | TODO |
 
 ### Batching strategy (500 contacts, existing domain reputation)
 
@@ -104,23 +108,42 @@ Domain celtic.cz was used with Mailchimp last year (50% open rate). Audience = t
 ```
 Webhook (POST, no auth) → Fetch Template → Inject Osloveni → Send via SendGrid
 ```
-- **Fetch Template:** HTTP GET `https://darthpeter.github.io/Skotsko-mailing/templates/email-2026-predprodej.html`
-- **Inject Osloveni:** Code node — replaces `{{osloveni}}` with recipient greeting, sets recipient + subject
-- **Send via SendGrid:** from `petr@celtic.cz` as "Skotsko v Úněticích"
-- **Credentials:** SendGrid account `pSDSmCCOIPiKXOo2`
+- Simple test sender, hardcoded to `chotebor.p@gmail.com`
+- Use for quick template iteration
 
-**Production flow** (TODO):
+**Production flow** (id: `lcE8F0gUUyuLodGZ`, name: "Skotsko e-mail (PRODUCTION)"):
 ```
-Manual Trigger (Petr clicks Execute)
-  → Set Batch Number (Petr enters manually)
-    → Supabase: SELECT * FROM contacts WHERE batch=N AND sent=false AND subscribed=true
-      → Loop each contact
-        → Fetch Template (GitHub Pages)
-          → Inject osloveni per recipient
-            → Send via SendGrid (ASM group 28696)
-              → Supabase: UPDATE contacts SET sent=true WHERE id=contact.id
+Form Trigger (Enter Batch Number)
+  → Fetch Template (GitHub Pages)
+    → Read Contacts (Supabase: batch=N, sent=false, subscribed=true)
+      → Build Emails (Code: inject osloveni per contact, handle empty)
+        → Send via SendGrid (ASM group 28696)
+          → Prepare Update (Code: get contactId)
+            → Mark Sent (Supabase: set sent=true)
 ```
-**Safeguard:** No webhook trigger. Petr must manually enter batch number and click Execute. chotebor.p@gmail.com is in batch 1 for test runs.
+
+**Nodes detail:**
+| Node | Type | Purpose |
+|------|------|---------|
+| Enter Batch Number | Form Trigger | Web form with one field — Petr types batch number and submits |
+| Fetch Template | HTTP Request | GETs template from GitHub Pages |
+| Read Contacts | Supabase | Gets contacts WHERE batch=N AND sent=false AND subscribed=true |
+| Build Emails | Code | Replaces `{{osloveni}}` (handles empty), sets recipient/subject/html per contact |
+| Send via SendGrid | SendGrid | Sends from `petr@celtic.cz` as "Skotsko v Úněticích", ASM group 28696 |
+| Prepare Update | Code | Maps contactId for database update |
+| Mark Sent | Supabase | Updates `sent=true` for each successfully sent contact |
+
+**Safeguards:**
+- Form Trigger = manual only, no automation, no webhook
+- Petr must type batch number and click Submit
+- `sent=true` after each send prevents double-sending
+- `subscribed=true` filter respects unsubscribes
+- ASM group 28696 = SendGrid also blocks server-side
+- Batch 1 = only `chotebor.p@gmail.com` for testing
+
+**Credentials needed:**
+- SendGrid: `pSDSmCCOIPiKXOo2` (already connected)
+- Supabase: must be connected manually in "Read Contacts" and "Mark Sent" nodes
 
 ### SendGrid setup needed
 
@@ -191,3 +214,53 @@ Manual Trigger (Petr clicks Execute)
 | **FB** | facebook.com/skotskovuneticich |
 | **IG** | instagram.com/skotsko_unetice/ |
 | **Contact** | petr@chotebor.org |
+
+---
+
+## User Manual: How to Send Emails
+
+### One-time setup (do once)
+
+1. Open n8n → workflow **"Skotsko e-mail (PRODUCTION)"** (`lcE8F0gUUyuLodGZ`)
+2. Click **"Read Contacts"** node → connect your Supabase credentials
+3. Click **"Mark Sent"** node → connect your Supabase credentials (same ones)
+4. **Activate** the workflow (toggle top-right)
+5. The form trigger URL will appear — bookmark it
+
+### Sending a batch
+
+1. Open the form trigger URL in your browser
+2. Enter the **batch number** (1-5)
+3. Click **Submit**
+4. Wait for the workflow to finish — the form will show a completion message
+5. Check your SendGrid Activity Feed for delivery stats
+
+### Batch schedule
+
+| Batch | Size | When |
+|-------|------|------|
+| 1 | 1 | **TEST FIRST** — just your email, verify everything works |
+| 2 | 50 | Day 1 — first real send, wait 2-3 hours |
+| 3 | 100 | Day 1 — if batch 2 looks clean |
+| 4 | 150 | Day 2 |
+| 5 | 133 | Day 2 |
+
+### What to check between batches
+
+Go to **SendGrid → Activity**:
+- **Bounce rate** should be <2%
+- **Spam reports** should be 0
+- **Opens** should start appearing within 1 hour
+
+If bounce rate >5% or any spam reports → **STOP** and investigate before next batch.
+
+### If something goes wrong
+
+- **Workflow failed mid-batch?** Safe to rerun the same batch number — contacts already sent have `sent=true` and won't be sent again.
+- **Need to resend to someone?** In Supabase, set their `sent` back to `false`.
+- **Want to skip someone?** In Supabase, set their `subscribed` to `false`.
+- **Template change needed?** Update in GitHub repo (`Skotsko-mailing/templates/`), push, wait 1 min for Pages deploy, then send. The workflow fetches the latest template every time.
+
+### Quick test (without production workflow)
+
+Use the test workflow **"Skotsko e-mail (TEST)"** (`3ASCdHgg08fPP5rS`) — always sends to `chotebor.p@gmail.com` only. Trigger via Claude or n8n webhook.
