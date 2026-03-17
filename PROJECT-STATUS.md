@@ -37,7 +37,7 @@ Moving away from Mailchimp (database too large/expensive) to a self-hosted email
 
 | # | Task | Who | Status |
 |---|------|-----|--------|
-| 1 | **Test: Batch 1** (1 contact = chotebor.p@gmail.com) — verify full production flow | Petr | TODO |
+| 1 | **Test: Batch 1** (5 test contacts) — full production flow verified | Petr | DONE |
 | 2 | **Batch 2** (50 contacts) — send, wait 2-3h, check stats in SendGrid Activity | Petr | TODO |
 | 3 | **Batch 3** (100 contacts) — if #2 clean (bounces <2%, no spam) | Petr | TODO |
 | 4 | **Batch 4** (150 contacts) — next day | Petr | TODO |
@@ -131,7 +131,7 @@ The n8n SendGrid node doesn't support ASM groups. We call the SendGrid v3 API di
 
 | Day | Batch | Size | Action |
 |-----|-------|------|--------|
-| Test | #1 | 1 | Just `chotebor.p@gmail.com` — verify full flow + unsubscribe link works |
+| Test | #1 | 5 | Test emails (chotebor.p@gmail.com + 4 others) — DONE ✅ |
 | Day 1 | #2 | 50 | First real batch, monitor 2-3 hours |
 | Day 1 | #3 | 100 | If #2 clean (bounces <2%, no spam reports) |
 | Day 2 | #4 | 150 | Next batch |
@@ -253,7 +253,8 @@ If bounce rate >5% or any spam reports → **STOP** and investigate before next 
 - **Need to resend to someone?** In Supabase: `UPDATE contacts SET sent = false WHERE email = 'their@email.com'`
 - **Want to skip someone?** In Supabase: `UPDATE contacts SET subscribed = false WHERE email = 'their@email.com'`
 - **Template change needed?** Edit in GitHub repo (`templates/`), push, wait ~1 min for Pages deploy. Workflow fetches latest template every run.
-- **Supabase filter issue?** If batch returns 0 results unexpectedly, try changing filter from `sent=is.false` to `sent=is.false` in the Read Contacts node.
+- **Supabase filter issue?** Boolean columns use `is` operator (not `eq`). If `sent` is `null`, run: `UPDATE contacts SET sent = false WHERE sent IS NULL`
+- **Gmail "show trimmed content"?** Gmail conversation threading collapses repeated content when multiple test emails have the same subject. Won't happen for real recipients. View in new window to see full email.
 
 ### Quick test (without production workflow)
 
