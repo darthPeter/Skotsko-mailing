@@ -38,7 +38,7 @@ Moving away from Mailchimp (database too large/expensive) to a self-hosted email
 | # | Task | Who | Status |
 |---|------|-----|--------|
 | 1 | **Test: Batch 1** (5 test contacts) — full production flow verified | Petr | DONE |
-| 2 | **Batch 2** (50 contacts) — send, wait 2-3h, check stats in SendGrid Activity | Petr | TODO |
+| 2 | **Batch 2** (50 contacts) — sent, execution #8373, 13s | Petr | DONE |
 | 3 | **Batch 3** (100 contacts) — if #2 clean (bounces <2%, no spam) | Petr | TODO |
 | 4 | **Batch 4** (150 contacts) — next day | Petr | TODO |
 | 5 | **Batch 5** (133 contacts) — remaining | Petr | TODO |
