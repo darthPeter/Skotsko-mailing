@@ -23,55 +23,25 @@ Moving away from Mailchimp (database too large/expensive) to a self-hosted email
 | 2 | **Email template** | `templates/email-2026-predprodej.html` (~24KB, under Gmail 102KB limit) |
 | 3 | **All image assets** | Banner, merch (3), partners (4) — hosted on GitHub Pages |
 | 4 | **Image URLs updated** | All point to `darthpeter.github.io/Skotsko-mailing/assets/...` |
-| 5 | **N8N test workflow** | id: `3ASCdHgg08fPP5rS` — Webhook → Fetch Template → Inject Osloveni → SendGrid |
-| 6 | **Test sends** | Multiple successful sends to `chotebor.p@gmail.com`, template verified on mobile |
-| 7 | **Template reviewed** | Pricing box, merch names, copy, links — all iterated and approved |
+| 5 | **N8N test workflow** | id: `3ASCdHgg08fPP5rS` — simple test sender to `chotebor.p@gmail.com` |
+| 6 | **Test sends** | Multiple successful sends, template verified on mobile |
+| 7 | **Template reviewed** | Pricing, merch names, copy, links — all iterated and approved |
+| 8 | **SPF/DKIM/DMARC** | celtic.cz verified in SendGrid |
+| 9 | **ASM suppression group** | "Celtic.cz - Unsubscribed", group ID: **28696**, unsubscribers uploaded |
+| 10 | **Open + click tracking** | Enabled in SendGrid |
+| 11 | **Supabase contacts table** | 434 contacts imported, batches assigned |
+| 12 | **Production N8N workflow** | id: `lcE8F0gUUyuLodGZ` — full loop with ASM, Supabase read/update |
+| 13 | **Supabase credentials connected** | Both Read Contacts and Mark Sent nodes |
 
-### TODO (Next Steps)
+### TODO (Sendout)
 
 | # | Task | Who | Status |
 |---|------|-----|--------|
-| | **--- SendGrid setup ---** | | |
-| 1 | **Verify SPF/DKIM/DMARC** for celtic.cz | Petr | DONE |
-| 2 | **Create ASM suppression group** — "Celtic.cz - Unsubscribed", group ID: **28696** | Petr | DONE |
-| 3 | **Wire ASM group ID into N8N workflow** | Claude | DONE |
-| 4 | **Upload existing unsubscribers** to ASM group | Petr | DONE |
-| 5 | **Enable open tracking** | Petr | DONE |
-| 6 | **Enable click tracking** | Petr | DONE |
-| | **--- Database ---** | | |
-| 6 | **Set up Supabase table** `contacts` (email, osloveni, subscribed, batch, sent) | Petr/Claude | DONE |
-| 7 | **Export + import contacts** to Supabase (434 contacts) | Petr | DONE |
-| 8 | **Assign batch numbers** (1=test, 2=50, 3=100, 4=150, 5=133) | Petr/Claude | DONE |
-| | **--- N8N workflow ---** | | |
-| 9 | **Add ASM group ID to N8N workflow** (28696) | Claude | DONE |
-| 10 | **Build production workflow** `lcE8F0gUUyuLodGZ` | Claude | DONE |
-| 11 | **Connect Supabase credentials** in "Read Contacts" + "Mark Sent" nodes | Petr | TODO |
-| 12 | **Activate production workflow** (toggle on in n8n) | Petr | TODO |
-| | **--- Sendout ---** | | |
-| 13 | **Test: Batch 1** (1 contact = chotebor.p@gmail.com) — verify full flow | Petr | TODO |
-| 14 | **Batch 2** (50 contacts) — send, wait 2-3h, check stats | Petr | TODO |
-| 15 | **Batch 3** (100 contacts) — if #14 clean (bounces <2%, no spam) | Petr | TODO |
-| 16 | **Batch 4** (150 contacts) — next day | Petr | TODO |
-| 17 | **Batch 5** (133 contacts) — remaining | Petr | TODO |
-
-### Batching strategy (500 contacts, existing domain reputation)
-
-Domain celtic.cz was used with Mailchimp last year (50% open rate). Audience = ticket buyers. Moving to SendGrid = new sending infrastructure, so mild warmup needed.
-
-| Day | Batch | Size | Contents |
-|-----|-------|------|----------|
-| Test | #1 | 1 | Just `chotebor.p@gmail.com` — verify full flow works |
-| Day 1 | #2 | 50 | First real batch, monitor 2-3 hours |
-| Day 1 | #3 | 100 | If #2 clean (bounces <2%, no spam reports) |
-| Day 2 | #4 | 150 | Next batch |
-| Day 2 | #5 | 133 | Remaining |
-| | **Total** | **434** | |
-
-**Kill switch:** If batch #1 has >5% bounces or any spam reports → stop, investigate.
-
-**Supabase columns for batching:**
-- `batch` (integer 1-3) — assigned during import
-- `sent` (boolean, default false) — flipped to true after successful send, prevents double-sending
+| 1 | **Test: Batch 1** (1 contact = chotebor.p@gmail.com) — verify full production flow | Petr | TODO |
+| 2 | **Batch 2** (50 contacts) — send, wait 2-3h, check stats in SendGrid Activity | Petr | TODO |
+| 3 | **Batch 3** (100 contacts) — if #2 clean (bounces <2%, no spam) | Petr | TODO |
+| 4 | **Batch 4** (150 contacts) — next day | Petr | TODO |
+| 5 | **Batch 5** (133 contacts) — remaining | Petr | TODO |
 
 ---
 
@@ -80,7 +50,7 @@ Domain celtic.cz was used with Mailchimp last year (50% open rate). Audience = t
 ```
 ┌─────────────┐     ┌─────────┐     ┌───────────┐
 │  Supabase   │────▶│   N8N   │────▶│ SendGrid  │────▶ Inbox
-│  (contacts) │     │  (flow) │     │  (SMTP)   │
+│  (contacts) │     │  (flow) │     │  (API)    │
 └─────────────┘     └─────────┘     └───────────┘
                          │
                   ┌──────┴──────┐
@@ -90,67 +60,85 @@ Domain celtic.cz was used with Mailchimp last year (50% open rate). Audience = t
                   └─────────────┘
 ```
 
-### Supabase table (proposed schema)
+### Supabase table: `contacts`
 
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | uuid, PK | auto-generated |
 | `email` | text, unique | contact email |
-| `osloveni` | text | personalized greeting ("Petře", "Honzo", etc.) |
+| `osloveni` | text | personalized greeting ("Petře", "Honzo", etc.) — can be empty |
 | `subscribed` | boolean | default true |
-| `batch` | integer | 1-3, assigned during import |
+| `batch` | integer 1-5 | 1=test(1), 2=first(50), 3=second(100), 4=third(150), 5=rest(133) |
 | `sent` | boolean | default false, flipped to true after send (prevents double-sending) |
 | `created_at` | timestamptz | auto-generated |
 
-### N8N workflow
+### N8N workflows
 
 **Test flow** (id: `3ASCdHgg08fPP5rS`, name: "Skotsko e-mail (TEST)"):
-```
-Webhook (POST, no auth) → Fetch Template → Inject Osloveni → Send via SendGrid
-```
-- Simple test sender, hardcoded to `chotebor.p@gmail.com`
-- Use for quick template iteration
+- Simple webhook sender, hardcoded to `chotebor.p@gmail.com`
+- Use for quick template iteration via Claude or n8n
 
 **Production flow** (id: `lcE8F0gUUyuLodGZ`, name: "Skotsko e-mail (PRODUCTION)"):
+
 ```
 Run (Manual Trigger)
-  → Set Batch Number (Petr changes value before each run)
-    → Fetch Template (GitHub Pages)
-      → Read Contacts (Supabase: batch=N, sent=false, subscribed=true)
-        → Build Emails (Code: inject osloveni, filter sent, handle empty)
-          → Send via SendGrid (ASM group 28696)
-            → Prepare Update (Code: get contactId)
-              → Mark Sent (Supabase: set sent=true)
+  → Set Batch Number (value 1-5, Petr changes before each run)
+    → Fetch Template (HTTP GET from GitHub Pages)
+      → Read Contacts (Supabase: batch=N AND sent=false AND subscribed=true)
+        → Loop Over Contacts (Split In Batches, 1 at a time)
+            ↓ output 1 (loop item)
+            Build Email (Code: inject osloveni, build SendGrid API body with ASM)
+              → Send via SendGrid (HTTP POST to SendGrid v3 API)
+                → Prepare Update (Set: contactId → id, sent=true)
+                  → Mark Sent (Supabase: UPDATE contacts SET sent=true WHERE id=X)
+                    → [back to Loop Over Contacts]
+            ↓ output 0 (done)
+            [end]
 ```
 
-**Nodes detail:**
-| Node | Type | Purpose |
-|------|------|---------|
-| Run | Manual Trigger | Petr clicks "Execute Workflow" in n8n editor |
-| Set Batch Number | Set | Single field `batch` — Petr changes this value (1-5) before each run |
-| Fetch Template | HTTP Request | GETs template from GitHub Pages (latest version every time) |
-| Read Contacts | Supabase | Gets contacts WHERE batch=N AND sent=false AND subscribed=true |
-| Build Emails | Code | Replaces `{{osloveni}}` (empty = ok, stays blank), extra filter: skips sent=true |
-| Send via SendGrid | SendGrid | Sends from `petr@celtic.cz` as "Skotsko v Úněticích", ASM group 28696 |
-| Prepare Update | Code | Maps contactId for database update |
-| Mark Sent | Supabase | Updates `sent=true` for each successfully sent contact |
+**Node details:**
 
-**Safeguards (3 layers):**
+| Node | Type | Key config |
+|------|------|------------|
+| Run | Manual Trigger | Petr clicks Execute Workflow in n8n editor |
+| Set Batch Number | Set | `batch` = 1 (default). Change to 2-5 for real batches |
+| Fetch Template | HTTP Request | GET `darthpeter.github.io/Skotsko-mailing/templates/email-2026-predprodej.html` |
+| Read Contacts | Supabase (getAll) | Filter: `batch=eq.{N}&sent=eq.false&subscribed=eq.true`. Credential: `KmCWPRRYPk1x2Rxd` |
+| Loop Over Contacts | Split In Batches v3 | batchSize=1. Output 0=done, Output 1=loop items |
+| Build Email | Code | Replaces `{{osloveni}}` (empty→blank). Skips if sent=true. Builds full SendGrid API body with ASM group 28696 |
+| Send via SendGrid | HTTP Request | POST `api.sendgrid.com/v3/mail/send`. Uses predefined SendGrid credential `pSDSmCCOIPiKXOo2`. Body = `JSON.stringify($json.sendgridBody)` |
+| Prepare Update | Set | Maps `contactId` → `id`, sets `sent` = true |
+| Mark Sent | Supabase (update) | Filter: `id=eq.{uuid}`. Data: `sent=true` (autoMap, ignores id). Credential: `KmCWPRRYPk1x2Rxd` |
+
+**Why HTTP Request instead of SendGrid node:**
+The n8n SendGrid node doesn't support ASM groups. We call the SendGrid v3 API directly to include `asm.group_id: 28696` in the request body. This makes the `<%asm_group_unsubscribe_raw_url%>` and `<%asm_preferences_raw_url%>` tags in the template work.
+
+**Safeguards (4 layers):**
 1. **Manual Trigger** — nothing fires without Petr opening n8n and clicking Execute
-2. **Supabase query** filters `sent=false` — already-sent contacts never returned
-3. **Code node** double-checks `sent !== true` — extra safety in Build Emails
+2. **Supabase query** filters `sent=false` — already-sent contacts never returned from DB
+3. **Code node** double-checks `sent !== true` — extra safety before sending
 4. **ASM group 28696** — SendGrid blocks unsubscribed recipients server-side
 
-**Credentials needed:**
-- SendGrid: `pSDSmCCOIPiKXOo2` (already connected)
-- Supabase: **must be connected manually** in "Read Contacts" and "Mark Sent" nodes
+**Credentials:**
+| Credential | ID | Used by |
+|-----------|-----|---------|
+| Supabase (SkotskoMailing) | `KmCWPRRYPk1x2Rxd` | Read Contacts, Mark Sent |
+| SendGrid (SendGrid account) | `pSDSmCCOIPiKXOo2` | Send via SendGrid |
 
-### SendGrid setup needed
+### Batching strategy
 
-- Verified sender domain (`celtic.cz`) — check if already done
-- **ASM suppression group** — Petr creates in SendGrid: Settings → Suppression Management → Add Group. Name: "Festival Newsletter". Then upload existing Mailchimp unsubscribers to this group. Give Claude the **group ID** (number) to wire into N8N.
-- **Tracking** — enable open tracking + click tracking: Settings → Tracking
-- Template ASM tags already in place: `<%asm_group_unsubscribe_raw_url%>`, `<%asm_preferences_raw_url%>`
+434 contacts total. Domain celtic.cz has history (used with Mailchimp last year, 50% open rate). Moving to SendGrid = new sending infrastructure, so mild warmup.
+
+| Day | Batch | Size | Action |
+|-----|-------|------|--------|
+| Test | #1 | 1 | Just `chotebor.p@gmail.com` — verify full flow + unsubscribe link works |
+| Day 1 | #2 | 50 | First real batch, monitor 2-3 hours |
+| Day 1 | #3 | 100 | If #2 clean (bounces <2%, no spam reports) |
+| Day 2 | #4 | 150 | Next batch |
+| Day 2 | #5 | 133 | Remaining |
+| | **Total** | **434** | |
+
+**Kill switch:** If any batch has >5% bounces or spam reports → stop, investigate.
 
 ---
 
@@ -161,16 +149,16 @@ Run (Manual Trigger)
 
 **Sections:**
 1. Full-width header banner (FB cover image with lineup)
-2. Personalized greeting (`{{osloveni}}`)
+2. Personalized greeting (`{{osloveni}}`) — empty = just "Ahoj ,"
 3. Festival announcement with Mr. Irish Bastard YT link
-4. Pricing callout box (Předprodej 300 Kč / Na místě 400 Kč / ends 17.4.)
+4. Pricing callout: Předprodej 300 Kč / Na místě 400 Kč / ends 17.4.
 5. CTA button "Chci lístek!" → `celtic.cz/`
 6. Info links (celtic.cz, Facebook, FB události)
 7. Signature (Petr, organizátor)
-8. Merch grid: Únětický Trooper 2026 | The Beer for All | Festivalové OG (all 499 Kč, link → `kape.ly/skotsko-v-uneticich#merch`)
+8. Merch grid: Únětický Trooper 2026 | The Beer for All | Festivalové OG (all 499 Kč → `kape.ly/skotsko-v-uneticich#merch`)
 9. Partner logos (Hankey Bannister, Bláha, Únětický pivovar, Alkohol.cz)
 10. Social icons (FB, IG, email)
-11. Footer (copyright, Bannockburn Entertainments s.r.o., address, SendGrid unsub tags)
+11. Footer (copyright, address, SendGrid ASM unsubscribe/preferences links)
 
 **Design system:**
 - Dark green `#122b1a` (hero, footer)
@@ -182,18 +170,25 @@ Run (Manual Trigger)
 
 **Compatibility:**
 - Gmail, Outlook (desktop + new), Apple Mail, iOS Mail, Android
-- Responsive: stacks to single column at 600px, merch images full-width on mobile
-- Dark mode: `prefers-color-scheme` media query with adapted colors
-- Outlook: VML bulletproof CTA button + ghost tables for columns
+- Responsive: single column at 600px, merch images full-width on mobile
+- Dark mode: `prefers-color-scheme` media query
+- Outlook: VML bulletproof CTA button + ghost tables
 
 **Links in template:**
-- Banner → `celtic.cz/skotsko-v-uneticich/`
-- CTA "Chci lístek!" → `celtic.cz/`
-- Mr. Irish Bastard → `youtube.com/@MrIrishBastardOfficial`
-- Merch (images + Koupit buttons) → `kape.ly/skotsko-v-uneticich#merch`
-- Info links → `celtic.cz/skotsko-v-uneticich/`, `facebook.com/skotskovuneticich`
-- Social → FB, IG, email (petr@chotebor.org)
-- Footer unsub → `<%asm_group_unsubscribe_raw_url%>`, `<%asm_preferences_raw_url%>`
+| Link | Target |
+|------|--------|
+| Banner | `celtic.cz/skotsko-v-uneticich/` |
+| CTA "Chci lístek!" | `celtic.cz/` |
+| Mr. Irish Bastard | `youtube.com/@MrIrishBastardOfficial` |
+| Merch images + Koupit | `kape.ly/skotsko-v-uneticich#merch` |
+| "celtic.cz" info link | `celtic.cz/skotsko-v-uneticich/` |
+| "facebooku festivalu" | `facebook.com/skotskovuneticich` |
+| "FB události" | `facebook.com/skotskovuneticich` |
+| Social: FB | `facebook.com/skotskovuneticich` |
+| Social: IG | `instagram.com/skotsko_unetice/` |
+| Social: Email | `petr@chotebor.org` |
+| Unsubscribe | `<%asm_group_unsubscribe_raw_url%>` (SendGrid ASM) |
+| Preferences | `<%asm_preferences_raw_url%>` (SendGrid ASM) |
 
 ---
 
@@ -219,26 +214,25 @@ Run (Manual Trigger)
 
 ## User Manual: How to Send Emails
 
-### One-time setup (do once)
+### One-time setup (already done)
 
-1. Open n8n → workflow **"Skotsko e-mail (PRODUCTION)"** (`lcE8F0gUUyuLodGZ`)
-2. Click **"Read Contacts"** node → connect your Supabase credentials
-3. Click **"Mark Sent"** node → connect your Supabase credentials (same ones)
-4. Done. Do NOT activate — you run it manually each time.
+1. ~~Supabase credentials connected in Read Contacts + Mark Sent~~ ✅
+2. ~~SendGrid credentials connected in Send via SendGrid~~ ✅
+3. Workflow stays **inactive** — you run it manually each time
 
 ### Sending a batch
 
-1. Open the workflow in n8n editor
-2. Click **"Set Batch Number"** node → change the `batch` value to the batch you want to send (1-5)
-3. Click **"Execute Workflow"** (play button)
-4. Watch the nodes light up green as they process
-5. Check your SendGrid Activity Feed for delivery stats
+1. Open n8n → workflow **"Skotsko e-mail (PRODUCTION)"** (`lcE8F0gUUyuLodGZ`)
+2. Click **"Set Batch Number"** node → change the `batch` value (1-5)
+3. Click **"Execute Workflow"** (play button top-right)
+4. Watch the nodes light up green as they loop through contacts
+5. Check **SendGrid → Activity** for delivery stats
 
 ### Batch schedule
 
 | Batch | Size | When |
 |-------|------|------|
-| 1 | 1 | **TEST FIRST** — just your email, verify everything works |
+| 1 | 1 | **TEST FIRST** — just your email, verify everything works + unsubscribe link |
 | 2 | 50 | Day 1 — first real send, wait 2-3 hours |
 | 3 | 100 | Day 1 — if batch 2 looks clean |
 | 4 | 150 | Day 2 |
@@ -255,11 +249,12 @@ If bounce rate >5% or any spam reports → **STOP** and investigate before next 
 
 ### If something goes wrong
 
-- **Workflow failed mid-batch?** Safe to rerun the same batch number — contacts already sent have `sent=true` and won't be sent again.
-- **Need to resend to someone?** In Supabase, set their `sent` back to `false`.
-- **Want to skip someone?** In Supabase, set their `subscribed` to `false`.
-- **Template change needed?** Update in GitHub repo (`Skotsko-mailing/templates/`), push, wait 1 min for Pages deploy, then send. The workflow fetches the latest template every time.
+- **Workflow failed mid-batch?** Safe to rerun — contacts already sent have `sent=true` and won't be sent again.
+- **Need to resend to someone?** In Supabase: `UPDATE contacts SET sent = false WHERE email = 'their@email.com'`
+- **Want to skip someone?** In Supabase: `UPDATE contacts SET subscribed = false WHERE email = 'their@email.com'`
+- **Template change needed?** Edit in GitHub repo (`templates/`), push, wait ~1 min for Pages deploy. Workflow fetches latest template every run.
+- **Supabase filter issue?** If batch returns 0 results unexpectedly, try changing filter from `sent=eq.false` to `sent=is.false` in the Read Contacts node.
 
 ### Quick test (without production workflow)
 
-Use the test workflow **"Skotsko e-mail (TEST)"** (`3ASCdHgg08fPP5rS`) — always sends to `chotebor.p@gmail.com` only. Trigger via Claude or n8n webhook.
+Use test workflow **"Skotsko e-mail (TEST)"** (`3ASCdHgg08fPP5rS`) — always sends to `chotebor.p@gmail.com` only. Trigger via Claude or n8n.
