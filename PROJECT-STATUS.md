@@ -41,7 +41,9 @@ Moving away from Mailchimp (database too large/expensive) to a self-hosted email
 | 2 | **Batch 2** (50 contacts) — sent, execution #8373, 13s | Petr | DONE |
 | 3 | **Batch 3** (100 contacts) — sent, execution #8399, 25s | Petr | DONE |
 | 4 | **Batch 4** (150 contacts) — sent, execution #8500, 37s | Petr | DONE |
-| 5 | **Batch 5** (133 contacts) — remaining | Petr | TODO |
+| 5 | **Batch 5** (133 contacts) — sent, execution #8551 | Petr | DONE |
+
+**ALL 434 CONTACTS SENT.** Campaign complete.
 
 ---
 
